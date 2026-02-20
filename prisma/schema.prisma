@@ -24,56 +24,55 @@ model Admin {
 }
 
 model User {
-  id           String              @id @default(uuid())
-  name         String              @db.VarChar(30)
-  email        String              @unique
-  password     String
-  phone        String              @unique
-  role         Role
-  gender       Gender?             
-  address      String?             @db.VarChar(150)
-  birthDate    DateTime?
-  companyId    String?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @default(now()) @updatedAt
-  verified     Boolean             @default(false)
-  claimed      Boolean             @default(false)
-  isDemo       Boolean             @default(false)
-  hasPaidBundle Boolean            @default(false)
-  orders       Order[]
-  transactions TransactionLedger[]
-  company      Company?            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  wallet       Wallet?
-  redemptions  VoucherRedemption[]
-  walletTopups WalletTopUp[]
+  id            String              @id @default(uuid())
+  name          String              @db.VarChar(30)
+  email         String              @unique
+  password      String
+  phone         String              @unique
+  role          Role
+  gender        Gender?
+  address       String?             @db.VarChar(150)
+  birthDate     DateTime?
+  companyId     String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @default(now()) @updatedAt
+  verified      Boolean             @default(false)
+  claimed       Boolean             @default(false)
+  isDemo        Boolean             @default(false)
+  hasPaidBundle Boolean             @default(false)
+  orders        Order[]
+  transactions  TransactionLedger[]
+  company       Company?            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  wallet        Wallet?
+  redemptions   VoucherRedemption[]
+  walletTopups  WalletTopUp[]
 }
 
 model Vendor {
-  id        String    @id @default(uuid())
-  name      String    @db.VarChar(50)
-  email     String    @unique
-  phone     String    @unique
-  password  String
-  role      Role      @default(VENDOR)
-  products  Product[]
-  shopify   ShopifyStore?
+  id       String        @id @default(uuid())
+  name     String        @db.VarChar(50)
+  email    String        @unique
+  phone    String        @unique
+  password String
+  role     Role          @default(VENDOR)
+  products Product[]
+  shopify  ShopifyStore?
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @default(now()) @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model ShopifyStore {
-  id           String   @id @default(uuid())
-  shop         String   @unique              // mystore.myshopify.com
-  accessToken  String
-  scope        String?
-  vendorId     String   @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(uuid())
+  shop        String   @unique // mystore.myshopify.com
+  accessToken String
+  scope       String?
+  vendorId    String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  vendor       Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 }
-
 
 model VerificationToken {
   id         String   @id @default(uuid())
@@ -84,15 +83,15 @@ model VerificationToken {
 }
 
 model Company {
-  id        String    @id @default(uuid())
-  name      String    @db.VarChar(50)
-  address   String    @db.VarChar(100)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @default(now()) @updatedAt
-  hasWellnessStarterBundle Boolean @default(false)
-  vouchers  Voucher[] @relation("CompanyToVoucher")
-  users     User[]  
-  products  Product[] @relation("CompanyToProduct")
+  id                       String    @id @default(uuid())
+  name                     String    @db.VarChar(50)
+  address                  String    @db.VarChar(100)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @default(now()) @updatedAt
+  hasWellnessStarterBundle Boolean   @default(false)
+  vouchers                 Voucher[] @relation("CompanyToVoucher")
+  users                    User[]
+  products                 Product[] @relation("CompanyToProduct")
 }
 
 model Product {
@@ -123,6 +122,11 @@ model Product {
 
   category    Category?    @relation(fields: [categoryId], references: [id])
   subCategory SubCategory? @relation(fields: [subCategoryId], references: [id])
+
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([categoryId])
+  @@index([subCategoryId])
 }
 
 model Category {
@@ -153,6 +157,9 @@ model Variant {
   updatedAt       DateTime    @default(now()) @updatedAt
   orderItems      OrderItem[]
   product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([mrp])
+  @@index([productId])
 }
 
 model Wallet {
@@ -163,8 +170,7 @@ model Wallet {
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @default(now()) @updatedAt
   transactionLedger TransactionLedger[]
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model TransactionLedger {
@@ -225,14 +231,13 @@ model Order {
   deliveryInstructions String?            @db.VarChar(250)
   remarks              String?
   transactionId        String?            @unique
-  isCashPayment        Boolean?            @default(false)
-  isDemoOrder          Boolean             @default(false)
+  isCashPayment        Boolean?           @default(false)
+  isDemoOrder          Boolean            @default(false)
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @default(now()) @updatedAt
   transactionLedger    TransactionLedger? @relation(fields: [transactionId], references: [id])
-  user                  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   items                OrderItem[]
-  
 }
 
 model OrderItem {
@@ -262,8 +267,7 @@ model WalletTopUp {
   createdAtRazorpay DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @default(now()) @updatedAt
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model CashPayment {
