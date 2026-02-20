@@ -1,0 +1,330 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+generator zod {
+  provider = "prisma-zod-generator"
+  output   = "../lib/generated/zod"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        String   @id @default(uuid())
+  name      String   @default("admin")
+  email     String   @unique
+  password  String
+  role      Role     @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model User {
+  id           String              @id @default(uuid())
+  name         String              @db.VarChar(30)
+  email        String              @unique
+  password     String
+  phone        String              @unique
+  role         Role
+  gender       Gender?             
+  address      String?             @db.VarChar(150)
+  birthDate    DateTime?
+  companyId    String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @default(now()) @updatedAt
+  verified     Boolean             @default(false)
+  claimed      Boolean             @default(false)
+  isDemo       Boolean             @default(false)
+  hasPaidBundle Boolean            @default(false)
+  orders       Order[]
+  transactions TransactionLedger[]
+  company      Company?            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  wallet       Wallet?
+  redemptions  VoucherRedemption[]
+  walletTopups WalletTopUp[]
+}
+
+model Vendor {
+  id        String    @id @default(uuid())
+  name      String    @db.VarChar(50)
+  email     String    @unique
+  phone     String    @unique
+  password  String
+  role      Role      @default(VENDOR)
+  products  Product[]
+  shopify   ShopifyStore?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+}
+
+model ShopifyStore {
+  id           String   @id @default(uuid())
+  shop         String   @unique              // mystore.myshopify.com
+  accessToken  String
+  scope        String?
+  vendorId     String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  vendor       Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+}
+
+
+model VerificationToken {
+  id         String   @id @default(uuid())
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  createdAt  DateTime @default(now())
+}
+
+model Company {
+  id        String    @id @default(uuid())
+  name      String    @db.VarChar(50)
+  address   String    @db.VarChar(100)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  hasWellnessStarterBundle Boolean @default(false)
+  vouchers  Voucher[] @relation("CompanyToVoucher")
+  users     User[]  
+  products  Product[] @relation("CompanyToProduct")
+}
+
+model Product {
+  id             String           @id @default(uuid())
+  name           String           @db.VarChar(50)
+  images         String[]
+  description    String
+  discount       Int?
+  sku            String           @unique @db.VarChar(100)
+  availableStock Int
+  categoryOld    CategoryEnum?
+  avgRating      Float?
+  noOfReviews    Int?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @default(now()) @updatedAt
+  specifications Json?
+  vendorName     String?
+  subCategoryOld SubCategoryEnum?
+  /// @zod.ignore()
+  orderItems     OrderItem[]
+  variants       Variant[]
+  /// @zod.ignore()
+  companies      Company[]        @relation("CompanyToProduct")
+  vendor         Vendor?          @relation(fields: [vendorId], references: [id])
+  vendorId       String?
+  categoryId     String?
+  subCategoryId  String?
+
+  category    Category?    @relation(fields: [categoryId], references: [id])
+  subCategory SubCategory? @relation(fields: [subCategoryId], references: [id])
+}
+
+model Category {
+  id            String        @id @default(uuid())
+  name          String        @unique
+  subCategories SubCategory[]
+  products      Product[]
+}
+
+model SubCategory {
+  id         String    @id @default(uuid())
+  name       String
+  categoryId String
+  category   Category  @relation(fields: [categoryId], references: [id])
+  products   Product[]
+}
+
+model Variant {
+  id              String      @id @default(uuid())
+  variantCategory String      @db.VarChar(50)
+  variantValue    String      @db.VarChar(100)
+  mrp             Int
+  sku             String?     @unique @db.VarChar(100)
+  credits         String?
+  availableStock  Int?
+  productId       String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @default(now()) @updatedAt
+  orderItems      OrderItem[]
+  product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Wallet {
+  id                String              @id @default(uuid())
+  userId            String              @unique
+  balance           Int
+  expiryDate        DateTime
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @default(now()) @updatedAt
+  transactionLedger TransactionLedger[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+}
+
+model TransactionLedger {
+  id              String           @id @default(uuid())
+  userId          String
+  amount          Int
+  modeOfPayment   Modes
+  cashAmount      Int?
+  balanceAfterTxn Int?
+  transactionType TransactionType?
+  isCredit        Boolean
+  isDemo          Boolean          @default(false)
+  walletId        String
+  remark          String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @default(now()) @updatedAt
+  order           Order?
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet          Wallet           @relation(fields: [walletId], references: [id])
+}
+
+model Voucher {
+  id          String              @id @default(uuid())
+  code        String              @unique @db.VarChar(20)
+  description String?
+  credits     Int
+  companies   Company[]           @relation("CompanyToVoucher")
+  expiryDate  DateTime
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @default(now()) @updatedAt
+  redemptions VoucherRedemption[]
+}
+
+model VoucherRedemption {
+  id         String   @id @default(uuid())
+  userId     String
+  voucherId  String
+  redeemedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  voucher Voucher @relation(fields: [voucherId], references: [id])
+
+  @@unique([userId, voucherId]) // Ensure one voucher can be redeemed only once per user
+}
+
+model Order {
+  id                   String             @id @default(uuid())
+  userId               String
+  amount               Int
+  status               Status
+  phNumber             String?            @db.VarChar(15)
+  address              String?            @db.VarChar(150)
+  address2             String?            @db.VarChar(150) //migrate this before running website
+  city                 String?            @db.VarChar(50)
+  state                String?            @db.VarChar(50)
+  pinCode              String?            @db.VarChar(10)
+  deliveryInstructions String?            @db.VarChar(250)
+  remarks              String?
+  transactionId        String?            @unique
+  isCashPayment        Boolean?            @default(false)
+  isDemoOrder          Boolean             @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @default(now()) @updatedAt
+  transactionLedger    TransactionLedger? @relation(fields: [transactionId], references: [id])
+  user                  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items                OrderItem[]
+  
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  productId String
+  variantId String?
+  quantity  Int      @default(1)
+  price     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  order     Order    @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant   Variant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+}
+
+model WalletTopUp {
+  id                String    @id @default(uuid())
+  userId            String
+  razorpayOrderId   String    @unique
+  razorpayPaymentId String?
+  amount            Int
+  currency          String    @default("INR")
+  receipt           String?
+  status            String // created, paid, failed
+  attempts          Int?
+  createdAtRazorpay DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+}
+
+model CashPayment {
+  id                String    @id @default(uuid())
+  amount            Int
+  paymentStatus     String // pending, completed, failed
+  razorpayPaymentId String?   @unique
+  razorpayOrderId   String?   @unique
+  currency          String    @default("INR")
+  receipt           String?
+  attempts          Int?
+  createdAtRazorpay DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+}
+
+enum Status {
+  PENDING
+  APPROVED
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
+enum Modes {
+  Credits
+  Cash
+  Both
+}
+
+enum TransactionType {
+  CREDIT
+  PURCHASE
+  REFUND
+}
+
+enum CategoryEnum {
+  Fitness_And_Gym_Equipment
+  Nutrition_And_Health
+  Diagnostics_And_Prevention
+  Ergonomics_And_Workspace_Comfort
+  Health_And_Wellness_Services
+}
+
+enum SubCategoryEnum {
+  Cardio_Equipment
+  Probiotics_And_Supplements
+  Wearable_Health_Technology
+  Standing_Desks_And_Accessories
+  Onsite_Fitness_Classes_And_Workshops
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum Role {
+  ADMIN
+  HR
+  EMPLOYEE
+  VENDOR
+}
