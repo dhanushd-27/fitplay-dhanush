@@ -5,6 +5,8 @@ import { ProductCreateInputObjectSchema } from "@/lib/generated/zod/schemas";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+export const revalidate = 120; // cache for 2 minutes
+
 export async function POST(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
