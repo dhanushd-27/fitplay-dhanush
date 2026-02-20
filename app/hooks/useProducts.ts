@@ -1,38 +1,68 @@
-import useSWR from 'swr';
-import { ProductModelType } from '@/lib/generated/zod/schemas';
+import useSWRInfinite from "swr/infinite";
+import { ProductModelType } from "@/lib/generated/zod/schemas";
 
-export const fetchProducts = async (): Promise<ProductModelType[]> => {
+interface PaginatedProductsResponse {
+  message: string;
+  data: ProductModelType[];
+  metadata: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export const fetchProducts = async (
+  url: string
+): Promise<PaginatedProductsResponse | null> => {
   // Skip during build time
-  if (typeof window === 'undefined') {        
-    return [];
-  }  
-  
-  const response = await fetch('/api/products').then(res => res.json());
-  return response.data;
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const response = await fetch(url).then((res) => res.json());
+  return response;
 };
 
-export const useProducts = () => {
-  const { data, error, isLoading, mutate } = useSWR<ProductModelType[]>(
-    typeof window !== 'undefined' ? 'products' : null,
-    fetchProducts,
-    {
+export const useProducts = (limit = 20) => {
+  const getKey = (
+    pageIndex: number,
+    previousPageData: PaginatedProductsResponse | null
+  ) => {
+    // reached the end
+    if (previousPageData && previousPageData.data.length === 0) return null;
+
+    // add the cursor to the API endpoint
+    return `/api/products?page=${pageIndex + 1}&limit=${limit}`;
+  };
+
+  const { data, error, isLoading, mutate, size, setSize, isValidating } =
+    useSWRInfinite<PaginatedProductsResponse | null>(getKey, fetchProducts, {
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
-      revalidateIfStale: false, // Don't auto-refresh stale data
-      dedupingInterval: 300000, // 5 minute deduplication for stability
-      focusThrottleInterval: 300000, // 5 minute throttle
+      revalidateFirstPage: false,
+      dedupingInterval: 300000,
+      focusThrottleInterval: 300000,
       errorRetryCount: 5,
       errorRetryInterval: 2000,
-      loadingTimeout: 15000,
-     
-      keepPreviousData: true, // Keep previous data while loading new data
-      refreshInterval: 0, // Disable automatic refresh to prevent flickering
-    }
-  );
+      keepPreviousData: true,
+      refreshInterval: 0,
+    });
+
+  const products = data ? data.flatMap((page) => page?.data || []) : [];
+  const isLoadingMore =
+    isLoading || (size > 0 && data && typeof data[size - 1] === "undefined");
+  const isEmpty = data?.[0]?.data?.length === 0;
+  const isReachingEnd =
+    isEmpty || (data && (data[data.length - 1]?.data?.length ?? 0) < limit);
 
   return {
-    products: data || [],
+    products,
     isLoading,
+    isLoadingMore,
+    isReachingEnd,
+    size,
+    setSize,
     error,
     mutate,
   };
